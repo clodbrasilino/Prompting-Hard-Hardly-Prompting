@@ -50,17 +50,19 @@ CLIP_PRETRAINED_MODEL_ARCHIVE_LIST = [
 
 import getopt
 import sys
- 
-first =""
-last =""
-argv = sys.argv[1:]
-options, args = getopt.getopt(argv, "b:imgid:t:gpus",["base =","image_id =","train=","gpus="])
-for name, value in options:
-    if name in ['-imgid', '--image_id']:
-        first = value
 
-print(first )
-image_id=first
+first = ""
+last = ""
+image_id = ""
+try:
+    argv = sys.argv[1:]
+    options, args = getopt.getopt(argv, "b:imgid:t:gpus", ["base =", "image_id =", "train=", "gpus="])
+    for name, value in options:
+        if name in ['-imgid', '--image_id']:
+            first = value
+    image_id = first
+except getopt.GetoptError:
+    pass  # imported as a library — sys.argv is not ours to parse
 
 # Copied from transformers.models.bart.modeling_bart._expand_mask
 def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] = None):
