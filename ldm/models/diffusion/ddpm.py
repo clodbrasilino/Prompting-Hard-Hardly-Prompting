@@ -341,7 +341,7 @@ class DDPM(pl.LightningModule):
         loss_dict.update({f'{log_prefix}/loss_simple': loss.mean()})
         loss_simple = loss.mean() * self.l_simple_weight
 
-        loss_vlb = (self.lvlb_weights[t] * loss).mean()
+        loss_vlb = (self.lvlb_weights[t.cpu()] * loss).mean()
         loss_dict.update({f'{log_prefix}/loss_vlb': loss_vlb})
 
         loss = loss_simple + self.original_elbo_weight * loss_vlb
@@ -1157,7 +1157,7 @@ class LatentDiffusion(DDPM):
         loss_simple = self.get_loss(model_output, target, mean=False).mean([1, 2, 3])
         loss_dict.update({f'{prefix}/loss_simple': loss_simple.mean()})
 
-        logvar_t = self.logvar[t].to(self.device)
+        logvar_t = self.logvar[t.cpu()].to(self.device)
         loss = loss_simple / torch.exp(logvar_t) + logvar_t
         # loss = loss_simple / torch.exp(self.logvar) + self.logvar
         if self.learn_logvar:
@@ -1170,7 +1170,7 @@ class LatentDiffusion(DDPM):
         loss = 100*self.l_simple_weight * loss.mean() #+ 
 
         loss_vlb = self.get_loss(model_output, target, mean=False).mean(dim=(1, 2, 3))
-        loss_vlb = (self.lvlb_weights[t] * loss_vlb).mean()
+        loss_vlb = (self.lvlb_weights[t.cpu()] * loss_vlb).mean()
         loss_dict.update({f'{prefix}/loss_vlb': loss_vlb})
         loss += (self.original_elbo_weight * loss_vlb)
         loss_dict.update({f'{prefix}/loss': loss})
