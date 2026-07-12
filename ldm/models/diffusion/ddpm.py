@@ -630,7 +630,7 @@ class LatentDiffusion(DDPM):
                 # self.be_unconditional = True
             else:
                 model = instantiate_from_config(config)
-                #self.cond_stage_model = model.eval()
+                self.cond_stage_model = model.eval()
                 #self.cond_stage_model.train = disabled_train
                 
         else:
