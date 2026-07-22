@@ -268,6 +268,11 @@ class LocalCustomTokenEmbedding(CLIPTextEmbeddings):
                                             return_overflowing_tokens=False, padding="max_length", return_tensors="pt")
                 self.word_to_embeddings[word]=self.token_embedding(_tokens["input_ids"]).detach().numpy()[0,1]
         print("Vocabulary loaded!")
+        # Precompute stacked vocabulary tensor on GPU for fast nearest-neighbour search
+        self.vocab_words = list(self.word_to_embeddings.keys())
+        self.vocab_tensor = torch.stack([
+            torch.from_numpy(v) for v in self.word_to_embeddings.values()
+        ]).cuda()  # [vocab_size, 768]
         self.textual_inv_embedding = self.embedded_init[0:1,1:16,:].cuda()
         self.projected_textual_inv_embedding = nn.Parameter(self.embedded_init[0:1,1:16,:],requires_grad=True)
 
@@ -289,18 +294,12 @@ class LocalCustomTokenEmbedding(CLIPTextEmbeddings):
 
     @torch.no_grad()
     def fast_projection(self):
-        embed = self.textual_inv_embedding.clone().detach().cpu().numpy()
-        self.sentence = []
-        for i in range(len(embed[0])):
-            w = embed[0, i]
-            embeddings = np.array(list(self.word_to_embeddings.values()))
-            
-            distances = np.linalg.norm(w - embeddings, axis=1)
-            min_distance_index = np.argmin(distances)
-            
-            word_at_idx = list(self.word_to_embeddings.keys())[min_distance_index]
-            self.projected_textual_inv_embedding[0,i] = torch.from_numpy(embeddings[min_distance_index])
-            self.sentence.append(word_at_idx)
+        query = self.textual_inv_embedding.squeeze(0)       # [15, 768], already on GPU
+        dists = torch.cdist(query, self.vocab_tensor)        # [15, vocab_size]
+        best_idx = dists.argmin(dim=1)                       # [15]
+        projected = self.vocab_tensor[best_idx]              # [15, 768]
+        self.projected_textual_inv_embedding.data.copy_(projected.unsqueeze(0))  # [1, 15, 768]
+        self.sentence = [self.vocab_words[i.item()] for i in best_idx]
        
 
     def forward(self):
@@ -1659,3 +1658,4 @@ class CLIPVisionModelWithProjection(CLIPPreTrainedModel):
             hidden_states=vision_outputs.hidden_states,
             attentions=vision_outputs.attentions,
         )
+
