@@ -273,6 +273,11 @@ class LocalCustomTokenEmbedding(CLIPTextEmbeddings):
         self.vocab_tensor = torch.stack([
             torch.from_numpy(v) for v in self.word_to_embeddings.values()
         ]).cuda()  # [vocab_size, 768]
+        # Free the RAM-side vocabulary dict (~150 MB) — vocab_tensor (GPU)
+        # is used by fast_projection(); compute_projection() (the old slow
+        # path that iterates word_to_embeddings) is dead code, never called
+        # from forward().
+        self.word_to_embeddings = None
         self.textual_inv_embedding = self.embedded_init[0:1,1:16,:].cuda()
         self.projected_textual_inv_embedding = nn.Parameter(self.embedded_init[0:1,1:16,:],requires_grad=True)
 

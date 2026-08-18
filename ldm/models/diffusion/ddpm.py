@@ -528,10 +528,14 @@ class LatentDiffusion(DDPM):
         for param in self.model.parameters():
             param.requires_grad = True
 
-        self.clipmodel = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
-        self.clipmodel.text_projection.requires_grad = False
-        self.clipmodel.logit_scale.requires_grad = False
-        self.clipprocessor = AutoProcessor.from_pretrained("openai/clip-vit-large-patch14")
+        # Dead weight — CLIPModel (vision+text, ~1.7 GB RAM) is only used in
+        # calculate_clip_score / calculate_clip_score_with_cross_entropy,
+        # both of which have their call sites commented out in p_losses()
+        # (see lines ~1166-1168).  Removing saves ~1.7 GB RAM per instance.
+        # self.clipmodel = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
+        # self.clipmodel.text_projection.requires_grad = False
+        # self.clipmodel.logit_scale.requires_grad = False
+        # self.clipprocessor = AutoProcessor.from_pretrained("openai/clip-vit-large-patch14")
 
 
     def cross_entropy(self,preds, targets, reduction='none'):
